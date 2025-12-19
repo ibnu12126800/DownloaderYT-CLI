@@ -31,8 +31,8 @@ sudo pacman -S ffmpeg
 1. **Clone repositori ini:**
 
    ```bash
-   git clone https://github.com/yourusername/DownloaderYT.git
-   cd DownloaderYT
+   git clone https://github.com/ibnu12126800/DownloaderYT-CLI.git
+   cd DownloaderYT-CLI
    ```
 
    _(Catatan: Anda mungkin perlu membuat repositori ini nanti jika belum ada.)_
