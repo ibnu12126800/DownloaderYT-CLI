@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+
+# Dependencies
+venv/
+.venv/
+env/
+
+# Downloads
+downloads/
+
+# Executable script (if generated)
+run.sh
