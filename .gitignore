@@ -13,4 +13,4 @@ env/
 downloads/
 
 # Executable script (if generated)
-run.sh
+# run.sh
