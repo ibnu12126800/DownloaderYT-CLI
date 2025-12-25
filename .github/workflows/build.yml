@@ -46,12 +46,12 @@ jobs:
       - name: Build with PyInstaller (Linux/macOS)
         if: runner.os != 'Windows'
         run: |
-          pyinstaller --onefile --windowed --name="${{ matrix.artifact_name }}" gui.py
+          pyinstaller --onefile --windowed --collect-data certifi --name="${{ matrix.artifact_name }}" gui.py
 
       - name: Build with PyInstaller (Windows)
         if: runner.os == 'Windows'
         run: |
-          pyinstaller --onefile --windowed --name="${{ matrix.artifact_name }}" gui.py
+          pyinstaller --onefile --windowed --collect-data certifi --name="${{ matrix.artifact_name }}" gui.py
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

@@ -1,11 +1,18 @@
 import yt_dlp
 import os
+import ssl
+import certifi
+
+# Setup SSL certificates untuk PyInstaller builds
+os.environ['SSL_CERT_FILE'] = certifi.where()
+os.environ['REQUESTS_CA_BUNDLE'] = certifi.where()
 
 class YouTubeHandler:
     def __init__(self):
         self.ydl_opts = {
             'quiet': True,
             'no_warnings': True,
+            'nocheckcertificate': False,  # Tetap verifikasi tapi gunakan certifi
         }
 
     def get_video_info(self, url):
