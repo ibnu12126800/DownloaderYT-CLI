@@ -137,3 +137,37 @@ python gui.py
 ├── run.sh             # Script sederhana untuk menjalankan aplikasi
 └── downloads/         # Folder tempat hasil unduhan disimpan
 ```
+
+## Download
+
+Download executable terbaru dari halaman [Releases](https://github.com/ibnu12126800/DownloaderYT-CLI/releases):
+
+| Platform | File |
+|----------|------|
+| Windows | `YouTubeDownloader-Windows.exe` |
+| Linux | `YouTubeDownloader-Linux` |
+| macOS | `YouTubeDownloader-macOS` |
+
+## Release Versi Baru (untuk Developer)
+
+Project ini menggunakan GitHub Actions untuk build otomatis. Untuk membuat release baru:
+
+```bash
+# 1. Commit perubahan
+git add .
+git commit -m "Deskripsi perubahan"
+
+# 2. Push ke main
+git push origin main
+
+# 3. Buat tag versi baru
+git tag v1.x.x
+
+# 4. Push tag (trigger auto-build)
+git push origin v1.x.x
+```
+
+Setelah push tag, GitHub Actions akan otomatis:
+1. Build executable untuk Windows, Linux, dan macOS
+2. Membuat GitHub Release dengan semua file
+
