@@ -10,7 +10,14 @@ class YouTubeHandler:
 
     def get_video_info(self, url):
         """Mengambil metadata video tanpa download."""
-        with yt_dlp.YoutubeDL(self.ydl_opts) as ydl:
+        # Gunakan extract_flat untuk playlist agar lebih cepat
+        # Ini hanya mengambil info dasar tanpa extract setiap video
+        opts = {
+            **self.ydl_opts,
+            'extract_flat': 'in_playlist',  # Hanya flat extract untuk playlist
+            'skip_download': True,
+        }
+        with yt_dlp.YoutubeDL(opts) as ydl:
             try:
                 info = ydl.extract_info(url, download=False)
                 return info, None

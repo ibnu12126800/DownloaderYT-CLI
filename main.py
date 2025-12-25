@@ -1,5 +1,6 @@
 import os
 import sys
+import argparse
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
@@ -10,6 +11,173 @@ from downloader import YouTubeHandler
 
 console = Console()
 handler = YouTubeHandler()
+
+# Quality mapping for CLI arguments
+VIDEO_QUALITY_MAP = {
+    'best': 'bestvideo+bestaudio/best',
+    '4k': 'bestvideo[height<=2160]+bestaudio/best[height<=2160]',
+    '2160p': 'bestvideo[height<=2160]+bestaudio/best[height<=2160]',
+    '1440p': 'bestvideo[height<=1440]+bestaudio/best[height<=1440]',
+    '2k': 'bestvideo[height<=1440]+bestaudio/best[height<=1440]',
+    '1080p': 'bestvideo[height<=1080]+bestaudio/best[height<=1080]',
+    '720p': 'bestvideo[height<=720]+bestaudio/best[height<=720]',
+    '480p': 'bestvideo[height<=480]+bestaudio/best[height<=480]',
+    '360p': 'bestvideo[height<=360]+bestaudio/best[height<=360]',
+}
+
+AUDIO_QUALITY_MAP = {
+    'mp3': 'mp3',
+    'm4a': 'm4a',
+    'flac': 'flac',
+    'wav': 'wav',
+}
+
+def parse_arguments():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        description='YouTube Downloader CLI - Download video/audio dari YouTube',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog='''
+Contoh penggunaan:
+  %(prog)s                                    # Mode interactive
+  %(prog)s "URL" -t video -q 1080p            # Download video 1080p
+  %(prog)s "URL" -t audio -q mp3              # Download audio MP3
+  %(prog)s "URL" -t video -q best -o ./media  # Download ke folder custom
+        '''
+    )
+    
+    parser.add_argument('url', nargs='?', help='URL YouTube (video atau playlist)')
+    parser.add_argument('-t', '--type', choices=['video', 'audio'], 
+                        help='Tipe download: video atau audio')
+    parser.add_argument('-q', '--quality', 
+                        help='Kualitas (video: best/4k/1080p/720p/480p/360p, audio: mp3/m4a/flac/wav)')
+    parser.add_argument('-o', '--output', default='downloads',
+                        help='Direktori output (default: downloads)')
+    parser.add_argument('-i', '--interactive', action='store_true',
+                        help='Force mode interactive')
+    
+    return parser.parse_args()
+
+
+def run_non_interactive(args):
+    """Jalankan download dalam mode non-interactive."""
+    url = args.url
+    download_type = args.type or 'video'
+    quality = args.quality or ('best' if download_type == 'video' else 'mp3')
+    output_dir = args.output
+    
+    # Validasi quality
+    if download_type == 'video':
+        if quality.lower() not in VIDEO_QUALITY_MAP:
+            console.print(f"[bold red]Error:[/bold red] Kualitas video tidak valid: {quality}")
+            console.print(f"Pilihan: {', '.join(VIDEO_QUALITY_MAP.keys())}")
+            sys.exit(1)
+        format_str = VIDEO_QUALITY_MAP[quality.lower()]
+    else:
+        if quality.lower() not in AUDIO_QUALITY_MAP:
+            console.print(f"[bold red]Error:[/bold red] Format audio tidak valid: {quality}")
+            console.print(f"Pilihan: {', '.join(AUDIO_QUALITY_MAP.keys())}")
+            sys.exit(1)
+        audio_format = AUDIO_QUALITY_MAP[quality.lower()]
+    
+    # Ambil metadata
+    console.print(f"[bold cyan]🔗 URL:[/bold cyan] {url}")
+    with console.status("[bold green]Mengambil metadata...[/bold green]", spinner="dots"):
+        info, error = handler.get_video_info(url)
+    
+    if error:
+        console.print(f"[bold red]Gagal mengambil info:[/bold red] {error}")
+        sys.exit(1)
+    
+    # Tampilkan info singkat
+    is_playlist = info.get('_type') == 'playlist'
+    if is_playlist:
+        console.print(f"[bold cyan]📋 Playlist:[/bold cyan] {info.get('title', 'N/A')}")
+        count = info.get('playlist_count') or len(info.get('entries', []))
+        console.print(f"[bold cyan]📊 Jumlah Video:[/bold cyan] {count}")
+    else:
+        console.print(f"[bold cyan]🎬 Judul:[/bold cyan] {info.get('title', 'N/A')}")
+        console.print(f"[bold cyan]📺 Channel:[/bold cyan] {info.get('uploader', 'N/A')}")
+    
+    console.print(f"[bold cyan]📁 Output:[/bold cyan] {output_dir}/")
+    console.print(f"[bold cyan]🎯 Tipe:[/bold cyan] {download_type.capitalize()}")
+    console.print(f"[bold cyan]⚡ Kualitas:[/bold cyan] {quality}")
+    console.print()
+    
+    # Siapkan opsi download
+    dl_options = {}
+    
+    if is_playlist:
+        playlist_title = info.get('title', 'Playlist')
+        safe_title = "".join(x for x in playlist_title if x.isalnum() or x in " -_").strip()
+        dl_options['outtmpl'] = os.path.join(output_dir, safe_title, '%(title)s [%(id)s]', '%(title)s [%(id)s].%(ext)s')
+    else:
+        dl_options['outtmpl'] = os.path.join(output_dir, '%(title)s [%(id)s]', '%(title)s [%(id)s].%(ext)s')
+    
+    if download_type == 'video':
+        dl_options['format'] = format_str
+        dl_options['merge_output_format'] = 'mp4'
+    else:
+        dl_options['format'] = 'bestaudio/best'
+        dl_options['postprocessors'] = [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': audio_format,
+            'preferredquality': '192',
+        }]
+    
+    # Download dengan progress bar
+    progress = Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+        DownloadColumn(),
+        TransferSpeedColumn(),
+        TimeRemainingColumn(),
+        console=console
+    )
+    
+    task_id = progress.add_task("Downloading...", total=None)
+    
+    def progress_hook(d):
+        if d['status'] == 'downloading':
+            try:
+                total = d.get('total_bytes') or d.get('total_bytes_estimate')
+                downloaded = d.get('downloaded_bytes', 0)
+                
+                info_dict = d.get('info_dict', {})
+                title = info_dict.get('title', '')
+                if not title and 'filename' in d:
+                    title = os.path.basename(d['filename'])
+                
+                display_title = (title[:30] + '...') if len(title) > 30 else title
+                
+                p_index = info_dict.get('playlist_index')
+                p_count = info_dict.get('playlist_count')
+                
+                if p_index and p_count:
+                    desc = f"[cyan][{p_index}/{p_count}] {display_title}[/cyan]"
+                else:
+                    desc = f"[cyan]{display_title}[/cyan]" if display_title else "Downloading..."
+                
+                if total:
+                    progress.update(task_id, total=total, completed=downloaded, description=desc)
+            except Exception:
+                pass
+        elif d['status'] == 'finished':
+            progress.update(task_id, description="[bold green]Processing...[/bold green]")
+    
+    console.print("[bold green]⬇️  Mulai download...[/bold green]")
+    with progress:
+        success, msg = handler.download(url, dl_options, progress_hook)
+    
+    if success:
+        console.print(f"\n[bold green]✅ {msg}[/bold green]")
+        console.print(f"[dim]File tersimpan di folder '{output_dir}'[/dim]")
+        sys.exit(0)
+    else:
+        console.print(f"\n[bold red]❌ Error:[/bold red] {msg}")
+        sys.exit(1)
 
 def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
@@ -216,7 +384,15 @@ def main():
 
 if __name__ == "__main__":
     try:
-        main()
+        args = parse_arguments()
+        
+        # Tentukan mode: interactive atau non-interactive
+        if args.url and not args.interactive:
+            # Mode non-interactive jika URL diberikan
+            run_non_interactive(args)
+        else:
+            # Mode interactive (default)
+            main()
     except KeyboardInterrupt:
         console.print("\n[bold yellow]Operasi dibatalkan oleh pengguna.[/bold yellow]")
         sys.exit(0)

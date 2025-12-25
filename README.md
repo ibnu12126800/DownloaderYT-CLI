@@ -52,13 +52,15 @@ sudo pacman -S ffmpeg
 
 ## Cara Menggunakan
 
+### Mode Interactive (Default)
+
 1. **Jalankan Aplikasi:**
 
    ```bash
    ./run.sh
    ```
 
-   Atau, jika `run.sh` tidak bisa dieksekusi atau Anda tidak ingin menggunakannya:
+   Atau:
 
    ```bash
    python main.py
@@ -73,6 +75,52 @@ sudo pacman -S ffmpeg
    - Memilih kualitas/format.
    - Menampilkan progress download.
 
+### Mode CLI (Non-Interactive)
+
+Untuk scripting atau penggunaan cepat:
+
+```bash
+# Download video kualitas terbaik
+python main.py "https://youtube.com/watch?v=xxx"
+
+# Download video 1080p
+python main.py "https://youtube.com/watch?v=xxx" -t video -q 1080p
+
+# Download audio MP3
+python main.py "https://youtube.com/watch?v=xxx" -t audio -q mp3
+
+# Download ke folder custom
+python main.py "https://youtube.com/watch?v=xxx" -t video -q 720p -o ./media
+
+# Lihat bantuan
+python main.py --help
+```
+
+**Opsi CLI yang tersedia:**
+
+| Opsi | Deskripsi |
+|------|-----------|
+| `url` | URL YouTube (video atau playlist) |
+| `-t, --type` | Tipe download: `video` atau `audio` |
+| `-q, --quality` | Kualitas video: `best`, `4k`, `1080p`, `720p`, `480p`, `360p`<br>Format audio: `mp3`, `m4a`, `flac`, `wav` |
+| `-o, --output` | Direktori output (default: `downloads`) |
+| `-i, --interactive` | Force mode interactive |
+
+### Mode Desktop GUI (PyQt6)
+
+Untuk tampilan grafis modern:
+
+```bash
+python gui.py
+```
+
+**Fitur GUI:**
+- 🎨 Dark theme modern
+- 🔍 Fetch info video dengan satu klik
+- ⚡ Progress bar real-time dengan speed indicator
+- 📁 Browse folder output
+- ❌ Tombol cancel download
+
 3. **Lokasi Unduhan:**
    Semua file yang diunduh (video/audio, thumbnail, metadata JSON) akan disimpan di dalam folder `downloads/` di direktori proyek. Untuk video tunggal, akan ada sub-folder terpisah per video. Untuk playlist, akan ada sub-folder dengan nama playlist, di dalamnya berisi sub-folder untuk setiap video dalam playlist tersebut.
 
@@ -80,11 +128,12 @@ sudo pacman -S ffmpeg
 
 ```text
 .
-├── main.py            # Logika utama aplikasi CLI dan interaksi pengguna
+├── main.py            # CLI - interaksi pengguna via terminal
+├── gui.py             # Desktop GUI - antarmuka grafis PyQt6
 ├── downloader.py      # Wrapper untuk fungsionalitas yt-dlp
 ├── requirements.txt   # Daftar dependensi Python
 ├── .gitignore         # File yang diabaikan oleh Git
 ├── README.md          # Dokumentasi proyek
-└── run.sh             # Script sederhana untuk menjalankan aplikasi
+├── run.sh             # Script sederhana untuk menjalankan aplikasi
 └── downloads/         # Folder tempat hasil unduhan disimpan
 ```
