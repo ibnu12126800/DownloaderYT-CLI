@@ -5,6 +5,11 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version untuk release (contoh: v1.0.0)'
+        required: true
+        default: 'v1.0.0'
 
 jobs:
   build:
@@ -13,13 +18,10 @@ jobs:
         include:
           - os: ubuntu-latest
             artifact_name: YouTubeDownloader-Linux
-            asset_name: YouTubeDownloader-Linux
           - os: windows-latest
-            artifact_name: YouTubeDownloader-Windows.exe
-            asset_name: YouTubeDownloader-Windows.exe
+            artifact_name: YouTubeDownloader-Windows
           - os: macos-latest
             artifact_name: YouTubeDownloader-macOS
-            asset_name: YouTubeDownloader-macOS
 
     runs-on: ${{ matrix.os }}
 
@@ -38,20 +40,25 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Build with PyInstaller
+      - name: Build with PyInstaller (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          pyinstaller --onefile --windowed --name="${{ matrix.artifact_name }}" gui.py
+
+      - name: Build with PyInstaller (Windows)
+        if: runner.os == 'Windows'
         run: |
           pyinstaller --onefile --windowed --name="${{ matrix.artifact_name }}" gui.py
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.asset_name }}
+          name: ${{ matrix.artifact_name }}
           path: dist/${{ matrix.artifact_name }}*
 
   release:
     needs: build
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
     
     steps:
       - name: Download all artifacts
@@ -59,13 +66,29 @@ jobs:
         with:
           path: artifacts
 
-      - name: Display structure
-        run: ls -R artifacts
+      - name: Prepare release files
+        run: |
+          mkdir -p release
+          find artifacts -type f -exec cp {} release/ \;
+          ls -la release/
+
+      - name: Get version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          files: artifacts/**/*
+          tag_name: ${{ steps.version.outputs.VERSION }}
+          name: Release ${{ steps.version.outputs.VERSION }}
+          files: release/*
           generate_release_notes: true
+          draft: false
+          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
